@@ -267,26 +267,13 @@
       fetch(storyUrl)
         .then((r) => r.text())
         .then((content) => {
-          // Replace relative URLs with blob URLs
+          // Replace relative URLs with blob URLs - simple global replacement
           Object.keys(fileMap).forEach((file) => {
-            // Escape special regex characters in the full file path
-            const escapedFile = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-            // Match the full file path in attributes and CSS
-            const patterns = [
-              new RegExp(`(src|href)=(['"])([^'"]*?)${escapedFile}\\2`, "gi"),
-              new RegExp(`url\\((['"]?)([^)'"]*?)${escapedFile}\\1\\)`, "gi"),
-              new RegExp(`(['"])([^'"]*?)${escapedFile}\\1`, "gi"),
-            ];
-
-            patterns.forEach((regex) => {
-              content = content.replace(regex, (match) => {
-                return match.replace(
-                  new RegExp(escapedFile, "g"),
-                  fileMap[file],
-                );
-              });
-            });
+            const regex = new RegExp(
+              file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+              "g",
+            );
+            content = content.replace(regex, fileMap[file]);
           });
 
           // Inject modified content into iframe
