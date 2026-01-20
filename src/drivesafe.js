@@ -276,6 +276,7 @@
             const patterns = [
               new RegExp(`(src|href)=(['"])([^'"]*?)${escapedFile}\\2`, "gi"),
               new RegExp(`url\\((['"]?)([^)'"]*?)${escapedFile}\\1\\)`, "gi"),
+              new RegExp(`(['"])([^'"]*?)${escapedFile}\\1`, "gi"),
             ];
 
             patterns.forEach((regex) => {
