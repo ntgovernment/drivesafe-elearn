@@ -15,18 +15,28 @@
     init: function () {
       // Detect base path from current script location
       const scriptTag = document.currentScript;
-      if (scriptTag && scriptTag.src) {
+      
+      // Check for explicit base path configuration first
+      const configuredBasePath = scriptTag?.getAttribute("data-base-path");
+      if (configuredBasePath) {
+        this.basePath = configuredBasePath.endsWith("/") 
+          ? configuredBasePath 
+          : configuredBasePath + "/";
+        console.log("[DriveSafe] Using configured basePath:", this.basePath);
+      } else if (scriptTag && scriptTag.src) {
         const url = new URL(scriptTag.src);
         this.basePath = url.pathname.substring(
           0,
           url.pathname.lastIndexOf("/") + 1,
         );
+        console.log("[DriveSafe] Detected basePath from script:", this.basePath);
       } else {
         // Fallback: use current page path
         this.basePath = window.location.pathname.substring(
           0,
           window.location.pathname.lastIndexOf("/") + 1,
         );
+        console.log("[DriveSafe] Detected basePath from page:", this.basePath);
       }
 
       // Create loading overlay
@@ -219,7 +229,7 @@
                 this.basePath + moduleName + "/" + filename,
                 window.location.origin,
               ).href;
-              console.log('[DriveSafe] Caching:', fullUrl);
+              console.log("[DriveSafe] Caching:", fullUrl);
               await cache.put(fullUrl, resp);
             }
           }

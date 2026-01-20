@@ -1,153 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clear DriveSafe Cache</title>
-  <style>
-    body {
-      font-family: Verdana, sans-serif;
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 20px;
-      background: #f5f5f5;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #9b2d1f;
-      margin-top: 0;
-    }
-    button {
-      background: #9b2d1f;
-      color: white;
-      border: none;
-      padding: 15px 30px;
-      font-size: 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin: 10px 5px 10px 0;
-    }
-    button:hover {
-      background: #7a2318;
-    }
-    #output {
-      margin-top: 20px;
-      padding: 15px;
-      background: #f9f9f9;
-      border-left: 4px solid #9b2d1f;
-      font-family: monospace;
-      white-space: pre-wrap;
-    }
-    .success {
-      color: #28a745;
-    }
-    .info {
-      color: #007bff;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear DriveSafe Cache</title>
+    <style>
+        body {
+            font-family: Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #9b2d1f;
+            margin-top: 0;
+        }
+
+        button {
+            background: #9b2d1f;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+
+        button:hover {
+            background: #7a2318;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #9b2d1f;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .info {
+            color: #007bff;
+        }
+    </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>DriveSafe Cache Management</h1>
-    <p>Use this page to clear all cached modules and start fresh.</p>
-    
-    <button onclick="clearAll()">Clear All Caches</button>
-    <button onclick="listCaches()">List Cached Files</button>
-    <button onclick="unregisterSW()">Unregister Service Worker</button>
-    
-    <div id="output"></div>
-  </div>
+    <div class="container">
+        <h1>DriveSafe Cache Management</h1>
+        <p>Use this page to clear all cached modules and start fresh.</p>
 
-  <script>
-    const output = document.getElementById('output');
+        <button onclick="clearAll()">Clear All Caches</button>
+        <button onclick="listCaches()">List Cached Files</button>
+        <button onclick="unregisterSW()">Unregister Service Worker</button>
 
-    function log(message, type = 'info') {
-      const time = new Date().toLocaleTimeString();
-      const line = `[${time}] ${message}\n`;
-      output.innerHTML += `<span class="${type}">${line}</span>`;
-    }
+        <div id="output"></div>
+    </div>
 
-    async function clearAll() {
-      output.innerHTML = '';
-      log('Starting cache clear...', 'info');
-      
-      // Clear localStorage
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.endsWith('_extracted')) {
-          localStorage.removeItem(key);
-          log(`Removed localStorage: ${key}`, 'success');
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const line = `[${time}] ${message}\n`;
+            output.innerHTML += `<span class="${type}">${line}</span>`;
         }
-      });
-      
-      // Clear all caches
-      const cacheNames = await caches.keys();
-      log(`Found ${cacheNames.length} cache(s)`, 'info');
-      
-      for (const name of cacheNames) {
-        await caches.delete(name);
-        log(`Deleted cache: ${name}`, 'success');
-      }
-      
-      log('✓ All caches cleared!', 'success');
-      log('Reload the demo page to test fresh extraction.', 'info');
-    }
 
-    async function listCaches() {
-      output.innerHTML = '';
-      log('Listing all cached files...', 'info');
-      
-      const cacheNames = await caches.keys();
-      
-      for (const name of cacheNames) {
-        log(`\nCache: ${name}`, 'info');
-        const cache = await caches.open(name);
-        const requests = await cache.keys();
-        
-        log(`  Files: ${requests.length}`, 'info');
-        requests.forEach((req, i) => {
-          if (i < 10) { // Show first 10
-            log(`    ${req.url}`, 'success');
-          }
-        });
-        if (requests.length > 10) {
-          log(`    ... and ${requests.length - 10} more`, 'info');
-        }
-      }
-      
-      // List localStorage
-      log('\nLocalStorage:', 'info');
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.endsWith('_extracted')) {
-          log(`  ${key} = ${localStorage.getItem(key)}`, 'success');
-        }
-      });
-    }
+        async function clearAll() {
+            output.innerHTML = '';
+            log('Starting cache clear...', 'info');
 
-    async function unregisterSW() {
-      output.innerHTML = '';
-      log('Unregistering service workers...', 'info');
-      
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      
-      for (const reg of registrations) {
-        await reg.unregister();
-        log(`Unregistered: ${reg.scope}`, 'success');
-      }
-      
-      if (registrations.length === 0) {
-        log('No service workers found.', 'info');
-      } else {
-        log(`✓ Unregistered ${registrations.length} service worker(s)`, 'success');
-        log('Reload the page to re-register.', 'info');
-      }
-    }
-  </script>
+            // Clear localStorage
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.endsWith('_extracted')) {
+                    localStorage.removeItem(key);
+                    log(`Removed localStorage: ${key}`, 'success');
+                }
+            });
+
+            // Clear all caches
+            const cacheNames = await caches.keys();
+            log(`Found ${cacheNames.length} cache(s)`, 'info');
+
+            for (const name of cacheNames) {
+                await caches.delete(name);
+                log(`Deleted cache: ${name}`, 'success');
+            }
+
+            log('✓ All caches cleared!', 'success');
+            log('Reload the demo page to test fresh extraction.', 'info');
+        }
+
+        async function listCaches() {
+            output.innerHTML = '';
+            log('Listing all cached files...', 'info');
+
+            const cacheNames = await caches.keys();
+
+            for (const name of cacheNames) {
+                log(`\nCache: ${name}`, 'info');
+                const cache = await caches.open(name);
+                const requests = await cache.keys();
+
+                log(`  Files: ${requests.length}`, 'info');
+                requests.forEach((req, i) => {
+                    if (i < 10) { // Show first 10
+                        log(`    ${req.url}`, 'success');
+                    }
+                });
+                if (requests.length > 10) {
+                    log(`    ... and ${requests.length - 10} more`, 'info');
+                }
+            }
+
+            // List localStorage
+            log('\nLocalStorage:', 'info');
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.endsWith('_extracted')) {
+                    log(`  ${key} = ${localStorage.getItem(key)}`, 'success');
+                }
+            });
+        }
+
+        async function unregisterSW() {
+            output.innerHTML = '';
+            log('Unregistering service workers...', 'info');
+
+            const registrations = await navigator.serviceWorker.getRegistrations();
+
+            for (const reg of registrations) {
+                await reg.unregister();
+                log(`Unregistered: ${reg.scope}`, 'success');
+            }
+
+            if (registrations.length === 0) {
+                log('No service workers found.', 'info');
+            } else {
+                log(`✓ Unregistered ${registrations.length} service worker(s)`, 'success');
+                log('Reload the page to re-register.', 'info');
+            }
+        }
+    </script>
 </body>
+
 </html>

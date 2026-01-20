@@ -71,20 +71,20 @@ self.addEventListener("fetch", (event) => {
     caches.open(MODULES_CACHE).then(async (cache) => {
       // Try to match with various strategies
       let response = await cache.match(event.request);
-      
+
       // If not found, try matching by URL string
       if (!response) {
         response = await cache.match(event.request.url);
       }
-      
+
       // If found in cache, return it
       if (response) {
-        console.log('[SW] Serving from cache:', event.request.url);
+        console.log("[SW] Serving from cache:", event.request.url);
         return response;
       }
-      
+
       // Not in cache - try network (will fail for non-existent URLs)
-      console.log('[SW] Not in cache, trying network:', event.request.url);
+      console.log("[SW] Not in cache, trying network:", event.request.url);
       return fetch(event.request)
         .then((networkResponse) => {
           // Cache module resources
@@ -94,7 +94,7 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch((error) => {
-          console.error('[SW] Failed to fetch:', event.request.url, error);
+          console.error("[SW] Failed to fetch:", event.request.url, error);
           return new Response("Module resource unavailable", {
             status: 404,
             headers: { "Content-Type": "text/plain" },
