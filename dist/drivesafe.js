@@ -259,27 +259,46 @@
         </html>
       `;
 
-      // Set iframe src to story.html blob URL
-      iframe.src = storyUrl;
-
-      // Handle iframe load error
-      iframe.onerror = () => {
-        iframe.srcdoc = `
-          <html>
-            <head>
-              <style>
-                body { font-family: Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
-                h1 { color: #9b2d1f; font-size: 24px; text-align: center; }
-              </style>
-            </head>
-            <body><h1>Error loading module content</h1></body>
-          </html>
-        `;
-      };
-
       // Update title and show modal
       title.textContent = displayName;
       overlay.style.display = "flex";
+
+      // Fetch story.html and replace relative URLs with blob URLs
+      fetch(storyUrl)
+        .then((r) => r.text())
+        .then((content) => {
+          // Replace relative URLs with blob URLs
+          Object.keys(fileMap).forEach((file) => {
+            const basename = file.split("/").pop();
+            // Match common HTML attribute patterns: src="file", href="file", url('file'), url("file")
+            const patterns = [
+              new RegExp(`(src|href)=(['\"])([^'"]*?)${basename}\\2`, "gi"),
+              new RegExp(`url\\(['\"]?([^)'"]*?)${basename}['\"]?\\)`, "gi"),
+            ];
+            patterns.forEach((regex) => {
+              content = content.replace(regex, (match) => {
+                return match.replace(basename, fileMap[file]);
+              });
+            });
+          });
+
+          // Inject modified content into iframe
+          iframe.srcdoc = content;
+        })
+        .catch((err) => {
+          console.error("Error loading story.html:", err);
+          iframe.srcdoc = `
+            <html>
+              <head>
+                <style>
+                  body { font-family: Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
+                  h1 { color: #9b2d1f; font-size: 24px; text-align: center; }
+                </style>
+              </head>
+              <body><h1>Error loading module content</h1></body>
+            </html>
+          `;
+        });
     },
 
     closeModuleOverlay: function () {
