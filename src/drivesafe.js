@@ -15,7 +15,7 @@
     init: function () {
       // Try multiple methods to detect base path
       let scriptTag = document.currentScript;
-      
+
       // Method 1: Check for global configuration variable
       if (window.DRIVESAFE_BASE_PATH) {
         this.basePath = window.DRIVESAFE_BASE_PATH.endsWith("/")
@@ -40,7 +40,10 @@
               0,
               url.pathname.lastIndexOf("/") + 1,
             );
-            console.log("[DriveSafe] Detected basePath from script search:", this.basePath);
+            console.log(
+              "[DriveSafe] Detected basePath from script search:",
+              this.basePath,
+            );
           }
         }
       }
@@ -58,10 +61,13 @@
             0,
             url.pathname.lastIndexOf("/") + 1,
           );
-          console.log("[DriveSafe] Detected basePath from currentScript:", this.basePath);
+          console.log(
+            "[DriveSafe] Detected basePath from currentScript:",
+            this.basePath,
+          );
         }
       }
-      
+
       // Method 4: Fallback to page path
       if (!this.basePath) {
         this.basePath = window.location.pathname.substring(
@@ -73,16 +79,6 @@
 
       // Create loading overlay
       this.createLoadingOverlay();
-
-      // Register service worker if configured
-      const swPath = scriptTag?.getAttribute("data-service-worker");
-      if (swPath && "serviceWorker" in navigator) {
-        // Register service worker with the correct scope
-        console.log("[DriveSafe] Registering service worker with scope:", this.basePath);
-        navigator.serviceWorker.register(swPath, { scope: this.basePath })
-          .then(reg => console.log("[DriveSafe] Service worker registered:", reg.scope))
-          .catch(err => console.error("[DriveSafe] SW registration failed:", err));
-      }
 
       // Generate content
       this.generateContent();
@@ -216,14 +212,17 @@
 
       // Check if already extracted
       if (localStorage.getItem(moduleName + "_extracted")) {
-        console.log("[DriveSafe] Module already extracted, opening from cache:", moduleName);
+        console.log(
+          "[DriveSafe] Module already extracted, opening from cache:",
+          moduleName,
+        );
         this.openModuleInIframe(
           this.basePath + moduleName + "/story.html",
           displayName,
         );
         return;
       }
-      
+
       console.log("[DriveSafe] Extracting module:", moduleName);
 
       // Show overlay
@@ -294,7 +293,7 @@
      * @param {string} moduleUrl - The URL of the module to open
      * @param {string} displayName - The human-readable module name
      */
-    openModuleInIframe: function (moduleUrl, displayName) {
+    openModuleInIframe: async function (moduleUrl, displayName) {
       // Create fullscreen overlay container
       const overlay = document.createElement("div");
       overlay.id = "drivesafe-module-overlay";
@@ -316,24 +315,51 @@
       header.appendChild(title);
       header.appendChild(closeBtn);
 
-      // Create iframe
-      const iframe = document.createElement("iframe");
-      iframe.className = "drivesafe-module-iframe";
-      iframe.src = moduleUrl;
-      iframe.setAttribute("allowfullscreen", "true");
+      // Load HTML from cache and create iframe with blob URL
+      try {
+        const cache = await caches.open("drivesafe-modules-v2");
+        const fullUrl = new URL(moduleUrl, window.location.origin).href;
+        const cached = await cache.match(fullUrl);
 
-      // Assemble overlay
-      overlay.appendChild(header);
-      overlay.appendChild(iframe);
-      document.body.appendChild(overlay);
-
-      // Listen for completion message from module
-      this.moduleCompleteHandler = (event) => {
-        if (event.data && event.data.type === "module-complete") {
-          this.closeModuleOverlay();
+        if (!cached) {
+          alert("Module not found in cache. Please try downloading it again.");
+          overlay.remove();
+          return;
         }
-      };
-      window.addEventListener("message", this.moduleCompleteHandler);
+
+        // Get the HTML as blob and create object URL
+        const blob = await cached.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Create iframe with blob URL
+        const iframe = document.createElement("iframe");
+        iframe.className = "drivesafe-module-iframe";
+        iframe.src = blobUrl;
+        iframe.setAttribute("allowfullscreen", "true");
+
+        // Clean up blob URL when iframe is removed
+        iframe.addEventListener("load", () => {
+          console.log("[DriveSafe] Module loaded in iframe");
+        });
+
+        // Assemble overlay
+        overlay.appendChild(header);
+        overlay.appendChild(iframe);
+        document.body.appendChild(overlay);
+
+        // Listen for completion message from module
+        this.moduleCompleteHandler = (event) => {
+          if (event.data && event.data.type === "module-complete") {
+            this.closeModuleOverlay();
+          }
+        };
+        window.addEventListener("message", this.moduleCompleteHandler);
+      } catch (e) {
+        console.error("[DriveSafe] Error loading module from cache:", e);
+        alert("Error loading module. Please try again.");
+        overlay.remove();
+        return;
+      }
     },
 
     /**
