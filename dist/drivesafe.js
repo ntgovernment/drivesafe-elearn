@@ -13,30 +13,62 @@
      * Initialize the DriveSafe application
      */
     init: function () {
-      // Detect base path from current script location
-      const scriptTag = document.currentScript;
+      // Try multiple methods to detect base path
+      let scriptTag = document.currentScript;
       
-      // Check for explicit base path configuration first
-      const configuredBasePath = scriptTag?.getAttribute("data-base-path");
-      if (configuredBasePath) {
-        this.basePath = configuredBasePath.endsWith("/") 
-          ? configuredBasePath 
-          : configuredBasePath + "/";
-        console.log("[DriveSafe] Using configured basePath:", this.basePath);
-      } else if (scriptTag && scriptTag.src) {
-        const url = new URL(scriptTag.src);
-        this.basePath = url.pathname.substring(
-          0,
-          url.pathname.lastIndexOf("/") + 1,
-        );
-        console.log("[DriveSafe] Detected basePath from script:", this.basePath);
-      } else {
-        // Fallback: use current page path
+      // Method 1: Check for global configuration variable
+      if (window.DRIVESAFE_BASE_PATH) {
+        this.basePath = window.DRIVESAFE_BASE_PATH.endsWith("/")
+          ? window.DRIVESAFE_BASE_PATH
+          : window.DRIVESAFE_BASE_PATH + "/";
+        console.log("[DriveSafe] Using global basePath:", this.basePath);
+        scriptTag = document.querySelector('script[src*="drivesafe"]');
+      }
+      // Method 2: If currentScript is null, search for the script tag
+      else if (!scriptTag) {
+        scriptTag = document.querySelector('script[src*="drivesafe"]');
+        if (scriptTag) {
+          const configuredBasePath = scriptTag.getAttribute("data-base-path");
+          if (configuredBasePath) {
+            this.basePath = configuredBasePath.endsWith("/")
+              ? configuredBasePath
+              : configuredBasePath + "/";
+            console.log("[DriveSafe] Using data-base-path:", this.basePath);
+          } else if (scriptTag.src) {
+            const url = new URL(scriptTag.src);
+            this.basePath = url.pathname.substring(
+              0,
+              url.pathname.lastIndexOf("/") + 1,
+            );
+            console.log("[DriveSafe] Detected basePath from script search:", this.basePath);
+          }
+        }
+      }
+      // Method 3: Use document.currentScript if available
+      else {
+        const configuredBasePath = scriptTag.getAttribute("data-base-path");
+        if (configuredBasePath) {
+          this.basePath = configuredBasePath.endsWith("/")
+            ? configuredBasePath
+            : configuredBasePath + "/";
+          console.log("[DriveSafe] Using configured basePath:", this.basePath);
+        } else if (scriptTag.src) {
+          const url = new URL(scriptTag.src);
+          this.basePath = url.pathname.substring(
+            0,
+            url.pathname.lastIndexOf("/") + 1,
+          );
+          console.log("[DriveSafe] Detected basePath from currentScript:", this.basePath);
+        }
+      }
+      
+      // Method 4: Fallback to page path
+      if (!this.basePath) {
         this.basePath = window.location.pathname.substring(
           0,
           window.location.pathname.lastIndexOf("/") + 1,
         );
-        console.log("[DriveSafe] Detected basePath from page:", this.basePath);
+        console.log("[DriveSafe] Fallback basePath from page:", this.basePath);
       }
 
       // Create loading overlay
@@ -46,7 +78,10 @@
       const swPath = scriptTag?.getAttribute("data-service-worker");
       if (swPath && "serviceWorker" in navigator) {
         // Register service worker with the correct scope
-        navigator.serviceWorker.register(swPath, { scope: this.basePath });
+        console.log("[DriveSafe] Registering service worker with scope:", this.basePath);
+        navigator.serviceWorker.register(swPath, { scope: this.basePath })
+          .then(reg => console.log("[DriveSafe] Service worker registered:", reg.scope))
+          .catch(err => console.error("[DriveSafe] SW registration failed:", err));
       }
 
       // Generate content
@@ -181,12 +216,15 @@
 
       // Check if already extracted
       if (localStorage.getItem(moduleName + "_extracted")) {
+        console.log("[DriveSafe] Module already extracted, opening from cache:", moduleName);
         this.openModuleInIframe(
           this.basePath + moduleName + "/story.html",
           displayName,
         );
         return;
       }
+      
+      console.log("[DriveSafe] Extracting module:", moduleName);
 
       // Show overlay
       loadingText.textContent = `Preparing ${displayName}...`;
@@ -312,6 +350,33 @@
         window.removeEventListener("message", this.moduleCompleteHandler);
         this.moduleCompleteHandler = null;
       }
+    },
+
+    /**
+     * Clear all cached modules and localStorage (for testing)
+     */
+    clearAllCache: async function () {
+      console.log("[DriveSafe] Clearing all caches and localStorage...");
+
+      // Clear localStorage
+      const keys = Object.keys(localStorage);
+      keys.forEach((key) => {
+        if (key.endsWith("_extracted")) {
+          localStorage.removeItem(key);
+          console.log("[DriveSafe] Removed localStorage key:", key);
+        }
+      });
+
+      // Clear caches
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map((name) => {
+          console.log("[DriveSafe] Deleting cache:", name);
+          return caches.delete(name);
+        }),
+      );
+
+      console.log("[DriveSafe] All caches cleared. Reload the page.");
     },
 
     /**
