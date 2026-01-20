@@ -158,9 +158,12 @@
         return;
       }
       
+      // Close any existing module overlay first
+      this.closeModuleOverlay();
+      
       // Check if already extracted
       if (localStorage.getItem(moduleName + '_extracted')) {
-        window.open(this.basePath + moduleName + '/story.html', '_blank');
+        this.openModuleInIframe(this.basePath + moduleName + '/story.html', displayName);
         return;
       }
       
@@ -197,15 +200,16 @@
               const resp = new Response(blob, {
                 headers: { 'Content-Type': mime }
               });
-              // Cache with full path including base
-              await cache.put(this.basePath + moduleName + '/' + filename, resp);
+              // Cache with full URL for service worker matching
+              const fullUrl = new URL(this.basePath + moduleName + '/' + filename, window.location.origin).href;
+              await cache.put(fullUrl, resp);
             }
           }
         }
         
         localStorage.setItem(moduleName + '_extracted', 'true');
         overlay.style.display = 'none';
-        window.open(this.basePath + moduleName + '/story.html', '_blank');
+        this.openModuleInIframe(this.basePath + moduleName + '/story.html', displayName);
         
       } catch (e) {
         console.error('Module loading error:', e);
@@ -213,6 +217,69 @@
         setTimeout(() => {
           overlay.style.display = 'none';
         }, 5000);
+      }
+    },
+    
+    /**
+     * Open a module in a fullscreen iframe overlay
+     * @param {string} moduleUrl - The URL of the module to open
+     * @param {string} displayName - The human-readable module name
+     */
+    openModuleInIframe: function(moduleUrl, displayName) {
+      // Create fullscreen overlay container
+      const overlay = document.createElement('div');
+      overlay.id = 'drivesafe-module-overlay';
+      overlay.className = 'drivesafe-module-overlay';
+      
+      // Create header with title and close button
+      const header = document.createElement('div');
+      header.className = 'drivesafe-overlay-header';
+      
+      const title = document.createElement('span');
+      title.className = 'drivesafe-overlay-title';
+      title.textContent = displayName;
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'drivesafe-overlay-close';
+      closeBtn.textContent = '× Close Module';
+      closeBtn.onclick = () => this.closeModuleOverlay();
+      
+      header.appendChild(title);
+      header.appendChild(closeBtn);
+      
+      // Create iframe
+      const iframe = document.createElement('iframe');
+      iframe.className = 'drivesafe-module-iframe';
+      iframe.src = moduleUrl;
+      iframe.setAttribute('allowfullscreen', 'true');
+      
+      // Assemble overlay
+      overlay.appendChild(header);
+      overlay.appendChild(iframe);
+      document.body.appendChild(overlay);
+      
+      // Listen for completion message from module
+      this.moduleCompleteHandler = (event) => {
+        if (event.data && event.data.type === 'module-complete') {
+          this.closeModuleOverlay();
+        }
+      };
+      window.addEventListener('message', this.moduleCompleteHandler);
+    },
+    
+    /**
+     * Close the module overlay and clean up
+     */
+    closeModuleOverlay: function() {
+      const overlay = document.getElementById('drivesafe-module-overlay');
+      if (overlay) {
+        overlay.remove();
+      }
+      
+      // Remove message listener
+      if (this.moduleCompleteHandler) {
+        window.removeEventListener('message', this.moduleCompleteHandler);
+        this.moduleCompleteHandler = null;
       }
     },
     
