@@ -7,6 +7,7 @@
 
   const DriveSafe = {
     basePath: "",
+    currentFileMap: null,
 
     init: function () {
       // Detect base path
@@ -18,6 +19,7 @@
       console.log("[DriveSafe] Base path:", this.basePath);
 
       this.createLoadingOverlay();
+      this.createModuleOverlay();
       this.generateContent();
     },
 
@@ -30,6 +32,32 @@
         <span id="drivesafeLoadingText" class="drivesafe-loading-text">Preparing Module...</span>
       `;
       document.body.appendChild(overlay);
+    },
+
+    createModuleOverlay: function () {
+      const overlay = document.createElement("div");
+      overlay.id = "drivesafeModuleOverlay";
+      overlay.className = "drivesafe-module-overlay";
+      overlay.style.display = "none";
+      overlay.innerHTML = `
+        <div class="drivesafe-overlay-header">
+          <span id="drivesafeModuleTitle" class="drivesafe-overlay-title">Module</span>
+          <button id="drivesafeCloseBtn" class="drivesafe-overlay-close">Close</button>
+        </div>
+        <iframe id="drivesafeModuleIframe" class="drivesafe-module-iframe"></iframe>
+      `;
+      document.body.appendChild(overlay);
+
+      // Add close button handler
+      const closeBtn = document.getElementById("drivesafeCloseBtn");
+      closeBtn.addEventListener("click", () => this.closeModuleOverlay());
+
+      // Add ESC key handler
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.style.display === "flex") {
+          this.closeModuleOverlay();
+        }
+      });
     },
 
     generateContent: function () {
@@ -147,9 +175,9 @@
         // Extract all files to blob URLs
         const fileMap = {};
         const entries = Object.entries(zip.files);
-        
+
         loadingText.textContent = `Extracting ${displayName}...`;
-        
+
         for (let i = 0; i < entries.length; i++) {
           const [filename, file] = entries[i];
           if (!file.dir) {
@@ -160,10 +188,9 @@
         }
 
         overlay.style.display = "none";
-        
+
         // Open in new window with file map
         this.openModuleWindow(fileMap, moduleName, displayName);
-
       } catch (e) {
         console.error("Module loading error:", e);
         loadingText.textContent = `Unable to load ${displayName}. Please check your connection and try again.`;
@@ -173,42 +200,108 @@
       }
     },
 
-    openModuleWindow: function(fileMap, moduleName, displayName) {
-      // Open new window
-      const win = window.open("", "_blank");
-      if (!win) {
-        alert("Please allow popups to view modules.");
+    openModuleWindow: function (fileMap, moduleName, displayName) {
+      // Store fileMap for cleanup
+      this.currentFileMap = fileMap;
+
+      // Get modal elements
+      const overlay = document.getElementById("drivesafeModuleOverlay");
+      const iframe = document.getElementById("drivesafeModuleIframe");
+      const title = document.getElementById("drivesafeModuleTitle");
+
+      if (!overlay || !iframe || !title) {
+        console.error("DriveSafe: Modal overlay elements not found");
         return;
       }
 
-      // Get story.html content
-      let html = "";
+      // Find story.html in fileMap
+      let storyUrl = null;
       for (const filename in fileMap) {
         if (filename === "story.html" || filename.endsWith("/story.html")) {
-          fetch(fileMap[filename])
-            .then(r => r.text())
-            .then(content => {
-              // Replace relative URLs with blob URLs
-              Object.keys(fileMap).forEach(file => {
-                const basename = file.split('/').pop();
-                const regex = new RegExp(`(['"])${basename}\\1`, 'g');
-                content = content.replace(regex, `$1${fileMap[file]}$1`);
-              });
-              
-              win.document.write(content);
-              win.document.close();
-              win.document.title = displayName;
-            });
-          return;
+          storyUrl = fileMap[filename];
+          break;
         }
       }
-      
-      win.document.write(`<h1>Error: story.html not found in module</h1>`);
-      win.document.close();
+
+      if (!storyUrl) {
+        // Display error in iframe
+        iframe.srcdoc = `
+          <html>
+            <head>
+              <style>
+                body { font-family: Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
+                h1 { color: #9b2d1f; font-size: 24px; text-align: center; }
+              </style>
+            </head>
+            <body><h1>Error: story.html not found in module</h1></body>
+          </html>
+        `;
+        title.textContent = "Error";
+        overlay.style.display = "flex";
+        return;
+      }
+
+      // Show loading spinner in iframe
+      iframe.srcdoc = `
+        <html>
+          <head>
+            <style>
+              body { display: flex; align-items: center; justify-content: center; flex-direction: column; height: 100vh; margin: 0; background: #fff; }
+              .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #9b2d1f; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+              @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+              .text { font-family: Verdana, sans-serif; font-size: 20px; margin-top: 20px; color: #333; }
+            </style>
+          </head>
+          <body>
+            <div class="spinner"></div>
+            <div class="text">Loading module...</div>
+          </body>
+        </html>
+      `;
+
+      // Set iframe src to story.html blob URL
+      iframe.src = storyUrl;
+
+      // Handle iframe load error
+      iframe.onerror = () => {
+        iframe.srcdoc = `
+          <html>
+            <head>
+              <style>
+                body { font-family: Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; }
+                h1 { color: #9b2d1f; font-size: 24px; text-align: center; }
+              </style>
+            </head>
+            <body><h1>Error loading module content</h1></body>
+          </html>
+        `;
+      };
+
+      // Update title and show modal
+      title.textContent = displayName;
+      overlay.style.display = "flex";
     },
 
-    closeModuleOverlay: function() {
-      // Placeholder for consistency
+    closeModuleOverlay: function () {
+      // Revoke all blob URLs
+      if (this.currentFileMap) {
+        Object.values(this.currentFileMap).forEach((blobUrl) => {
+          URL.revokeObjectURL(blobUrl);
+        });
+        this.currentFileMap = null;
+      }
+
+      // Hide modal and reset iframe
+      const overlay = document.getElementById("drivesafeModuleOverlay");
+      const iframe = document.getElementById("drivesafeModuleIframe");
+
+      if (overlay) {
+        overlay.style.display = "none";
+      }
+
+      if (iframe) {
+        iframe.src = "about:blank";
+      }
     },
 
     getMimeType: function (filename) {
