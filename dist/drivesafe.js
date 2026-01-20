@@ -6,18 +6,31 @@
   'use strict';
   
   const DriveSafe = {
+    // Store the base path for the application
+    basePath: '',
+    
     /**
      * Initialize the DriveSafe application
      */
     init: function() {
+      // Detect base path from current script location
+      const scriptTag = document.currentScript;
+      if (scriptTag && scriptTag.src) {
+        const url = new URL(scriptTag.src);
+        this.basePath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
+      } else {
+        // Fallback: use current page path
+        this.basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+      }
+      
       // Create loading overlay
       this.createLoadingOverlay();
       
       // Register service worker if configured
-      const scriptTag = document.currentScript;
       const swPath = scriptTag?.getAttribute('data-service-worker');
       if (swPath && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.register(swPath);
+        // Register service worker with the correct scope
+        navigator.serviceWorker.register(swPath, { scope: this.basePath });
       }
       
       // Generate content
@@ -147,7 +160,7 @@
       
       // Check if already extracted
       if (localStorage.getItem(moduleName + '_extracted')) {
-        window.open(moduleName + '/story.html', '_blank');
+        window.open(this.basePath + moduleName + '/story.html', '_blank');
         return;
       }
       
@@ -174,7 +187,7 @@
           const zipBlob = await response.blob();
           const zip = await JSZip.loadAsync(zipBlob);
           
-          // Extract and cache each file
+          // Extract and cache each file using base path
           const fileEntries = Object.entries(zip.files);
           for (let i = 0; i < fileEntries.length; i++) {
             const [filename, file] = fileEntries[i];
@@ -184,14 +197,15 @@
               const resp = new Response(blob, {
                 headers: { 'Content-Type': mime }
               });
-              await cache.put(`/${moduleName}/${filename}`, resp);
+              // Cache with full path including base
+              await cache.put(this.basePath + moduleName + '/' + filename, resp);
             }
           }
         }
         
         localStorage.setItem(moduleName + '_extracted', 'true');
         overlay.style.display = 'none';
-        window.open(moduleName + '/story.html', '_blank');
+        window.open(this.basePath + moduleName + '/story.html', '_blank');
         
       } catch (e) {
         console.error('Module loading error:', e);
