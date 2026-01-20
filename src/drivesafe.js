@@ -219,6 +219,7 @@
                 this.basePath + moduleName + "/" + filename,
                 window.location.origin,
               ).href;
+              console.log("[DriveSafe] Caching:", fullUrl);
               await cache.put(fullUrl, resp);
             }
           }
