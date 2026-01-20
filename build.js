@@ -1,9 +1,9 @@
 // Simple build script to copy files from src to dist
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const srcDir = 'src';
-const distDir = 'dist';
+const srcDir = "src";
+const distDir = "dist";
 
 // Ensure dist directory exists
 if (!fs.existsSync(distDir)) {
@@ -11,14 +11,20 @@ if (!fs.existsSync(distDir)) {
 }
 
 // Files to copy
-const files = ['drivesafe.js', 'drivesafe.css', 'demo.html', 'sw.js'];
+const files = [
+  "drivesafe.js",
+  "drivesafe-simple.js",
+  "drivesafe.css",
+  "demo.html",
+  "sw.js",
+];
 
-console.log('Building distributable files...\n');
+console.log("Building distributable files...\n");
 
-files.forEach(file => {
+files.forEach((file) => {
   const srcPath = path.join(srcDir, file);
   const distPath = path.join(distDir, file);
-  
+
   if (fs.existsSync(srcPath)) {
     fs.copyFileSync(srcPath, distPath);
     console.log(`✓ Copied ${file} to dist/`);
@@ -27,4 +33,4 @@ files.forEach(file => {
   }
 });
 
-console.log('\n✓ Build complete!');
+console.log("\n✓ Build complete!");

@@ -269,15 +269,21 @@
         .then((content) => {
           // Replace relative URLs with blob URLs
           Object.keys(fileMap).forEach((file) => {
-            const basename = file.split("/").pop();
-            // Match common HTML attribute patterns: src="file", href="file", url('file'), url("file")
+            // Escape special regex characters in the full file path
+            const escapedFile = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            // Match the full file path in attributes and CSS
             const patterns = [
-              new RegExp(`(src|href)=(['\"])([^'"]*?)${basename}\\2`, "gi"),
-              new RegExp(`url\\(['\"]?([^)'"]*?)${basename}['\"]?\\)`, "gi"),
+              new RegExp(`(src|href)=(['"])([^'"]*?)${escapedFile}\\2`, "gi"),
+              new RegExp(`url\\((['"]?)([^)'"]*?)${escapedFile}\\1\\)`, "gi"),
             ];
+
             patterns.forEach((regex) => {
               content = content.replace(regex, (match) => {
-                return match.replace(basename, fileMap[file]);
+                return match.replace(
+                  new RegExp(escapedFile, "g"),
+                  fileMap[file],
+                );
               });
             });
           });
