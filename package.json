@@ -1,0 +1,14 @@
+{
+  "name": "drivesafe-elearn",
+  "version": "1.0.0",
+  "description": "Drivesafe Remote Driver Education and Licensing Program - Distributable Module",
+  "main": "dist/drivesafe.js",
+  "scripts": {
+    "build": "node build.js",
+    "serve": "npx http-server dist -p 8080 -o",
+    "dev": "npx http-server . -p 8080 -o"
+  },
+  "keywords": ["elearning", "driver-education", "drivesafe"],
+  "author": "",
+  "license": "MIT"
+}
